@@ -1,0 +1,57 @@
+[
+  {
+    "id": "2026-tiny-coffee-shops",
+    "title": "TINY COFFEE SHOPS",
+    "brand": "DE'LONGHI",
+    "agency": "LOLA MADRID",
+    "year": "2026",
+    "tier": "GOLD",
+    "category": "INDUSTRY CRAFT",
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "raw": "[INDUSTRY CRAFT] TINY COFFEE SHOPS – DE'LONGHI (LOLA MADRID)"
+  },
+  {
+    "id": "2026-haven",
+    "title": "HAVEN",
+    "brand": "SUNCORP INSURANCE",
+    "agency": "LEO SYDNEY",
+    "year": "2026",
+    "tier": "GRAND PRIX",
+    "category": "TITANIUM GRAND PRIX",
+    "url": "https://www.youtube.com/watch?v=Pwf50R9flkU",
+    "raw": "[TITANIUM GRAND PRIX] HAVEN – SUNCORP INSURANCE (LEO SYDNEY)"
+  },
+  {
+    "id": "2026-expedition-impossible",
+    "title": "EXPEDITION IMPOSSIBLE",
+    "brand": "COLUMBIA SPORTSWEAR",
+    "agency": "ADAM&EVE\\TBWA/LONDON",
+    "year": "2026",
+    "tier": "TITANIUM",
+    "category": "TITANIUM + BRAND ACTIVATION",
+    "url": "https://www.youtube.com/watch?v=N0WxAUkBuQA",
+    "raw": "[TITANIUM + BRAND ACTIVATION] EXPEDITION IMPOSSIBLE – COLUMBIA SPORTSWEAR (ADAM&EVE\\TBWA/LONDON)"
+  },
+  {
+    "id": "2025-the-messi-experience",
+    "title": "THE MESSI EXPERIENCE",
+    "brand": "ADIDAS",
+    "agency": "72ANDSUNNY AMSTERDAM",
+    "year": "2025",
+    "tier": "GOLD",
+    "category": "ENTERTAINMENT",
+    "url": "https://www.youtube.com/watch?v=example1",
+    "raw": "[ENTERTAINMENT] THE MESSI EXPERIENCE – ADIDAS (72ANDSUNNY AMSTERDAM)"
+  },
+  {
+    "id": "2024-skip-ad",
+    "title": "SKIP AD",
+    "brand": "BURGER KING",
+    "agency": "DAVID MADRID",
+    "year": "2024",
+    "tier": "GOLD",
+    "category": "MEDIA",
+    "url": "https://www.youtube.com/watch?v=example2",
+    "raw": "[MEDIA] SKIP AD – BURGER KING (DAVID MADRID)"
+  }
+]
