@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { buildCampaignDetails, DETAILS_VERSION, needsDetails } from "../campaign-detail";
@@ -804,6 +804,53 @@ export async function getProfileByUsername(
     .where(eq(profiles.username, username))
     .limit(1);
   return rows[0] ? mapProfile(rows[0]) : null;
+}
+
+/** Profili pubblici completi, filtrabili per nome / username / ruolo. */
+export async function searchProfiles(
+  query = "",
+  limit = 24
+): Promise<Profile[]> {
+  const db = getDb();
+  const complete = and(
+    isNotNull(profiles.username),
+    isNotNull(profiles.displayName),
+    isNotNull(profiles.creativeRole),
+    sql`trim(${profiles.username}) <> ''`,
+    sql`trim(${profiles.displayName}) <> ''`,
+    sql`trim(${profiles.creativeRole}) <> ''`
+  );
+
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    const rows = await db
+      .select()
+      .from(profiles)
+      .where(complete)
+      .orderBy(asc(profiles.displayName))
+      .limit(limit);
+    return rows.map(mapProfile);
+  }
+
+  const like = `%${q}%`;
+  const rows = await db
+    .select()
+    .from(profiles)
+    .where(
+      and(
+        complete,
+        or(
+          sql`lower(${profiles.displayName}) LIKE ${like}`,
+          sql`lower(${profiles.username}) LIKE ${like}`,
+          sql`lower(${profiles.creativeRole}) LIKE ${like}`,
+          sql`lower(COALESCE(${profiles.creativeRoleOther}, '')) LIKE ${like}`
+        )
+      )
+    )
+    .orderBy(asc(profiles.displayName))
+    .limit(limit);
+
+  return rows.map(mapProfile);
 }
 
 export async function ensureProfileRow(

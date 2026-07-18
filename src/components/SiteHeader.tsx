@@ -34,10 +34,25 @@ export function SiteHeader({ date, user, showLogin }: SiteHeaderProps) {
           {user ? (
             <UserMenu user={user} />
           ) : showLogin ? (
-            <Link href="/login" className="btn-glass-ghost text-[13px]">
-              Accedi
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link
+                href="/utenti"
+                className="hidden text-[13px] text-secondary transition hover:text-text sm:block"
+              >
+                Persone
+              </Link>
+              <Link href="/login" className="btn-glass-ghost text-[13px]">
+                Accedi
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/utenti"
+              className="text-[13px] text-secondary transition hover:text-text"
+            >
+              Persone
             </Link>
-          ) : null}
+          )}
         </div>
       </div>
     </header>

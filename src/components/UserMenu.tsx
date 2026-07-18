@@ -23,17 +23,42 @@ export function UserMenu({ user }: { user: HeaderUser }) {
   const initial = (user.displayName || "?").slice(0, 1).toUpperCase();
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 sm:gap-3">
+      <Link
+        href="/utenti"
+        className="hidden text-[13px] text-secondary transition hover:text-text md:block"
+      >
+        Persone
+      </Link>
       {user.username ? (
         <Link
           href={`/u/${user.username}`}
-          className="hidden text-[13px] text-secondary hover:text-text sm:block"
+          className="btn-glass-ghost hidden text-[12px] sm:inline-flex"
+          title="Copia questo link per LinkedIn"
         >
-          @{user.username}
+          Il mio profilo pubblico
         </Link>
       ) : null}
       <div className="glass-chip flex items-center gap-2 py-1 pr-2 pl-1">
-        {user.avatarUrl ? (
+        {user.username ? (
+          <Link href={`/u/${user.username}`} className="flex items-center gap-2">
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatarUrl}
+                alt=""
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-[13px] font-semibold text-accent">
+                {initial}
+              </span>
+            )}
+            <span className="hidden max-w-[7rem] truncate text-[12px] text-secondary lg:inline">
+              @{user.username}
+            </span>
+          </Link>
+        ) : user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.avatarUrl}
