@@ -4,8 +4,13 @@ import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 function siteOrigin(): string {
-  if (typeof window !== "undefined") return window.location.origin;
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
+    "http://localhost:3000"
+  );
 }
 
 export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
@@ -19,15 +24,23 @@ export function LoginForm({ nextPath = "/" }: { nextPath?: string }) {
     setStatus("sending");
     setMessage("");
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${siteOrigin()}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
     if (error) {
       setStatus("error");
       setMessage(error.message);
+      return;
+    }
+    // Ensure navigation happens even if the SDK redirect is blocked on iOS.
+    if (data.url) {
+      window.location.assign(data.url);
     }
   }
 

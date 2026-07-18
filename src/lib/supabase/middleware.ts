@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseCookieOptions } from "./cookie-options";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -9,7 +10,6 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Missing env must not crash the edge/proxy layer on Vercel.
   if (!url || !anonKey) {
     console.error(
       "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
@@ -17,8 +17,12 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  const pathname = request.nextUrl.pathname;
+  const isAuthCallback = pathname.startsWith("/auth/callback");
+
   try {
     const supabase = createServerClient(url, anonKey, {
+      cookieOptions: getSupabaseCookieOptions(),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -31,18 +35,24 @@ export async function updateSession(request: NextRequest) {
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...getSupabaseCookieOptions(),
+              ...options,
+            })
           );
         },
       },
     });
 
-    // Refresh session; do not use getSession() here.
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const pathname = request.nextUrl.pathname;
+    // Never intercept the OAuth/PKCE callback — Safari needs it to complete.
+    if (isAuthCallback) {
+      return supabaseResponse;
+    }
+
     const isPublicAuthRoute =
       pathname === "/login" || pathname.startsWith("/auth/");
 
