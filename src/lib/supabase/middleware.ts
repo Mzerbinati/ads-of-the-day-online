@@ -6,10 +6,19 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Missing env must not crash the edge/proxy layer on Vercel.
+  if (!url || !anonKey) {
+    console.error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
+    );
+    return supabaseResponse;
+  }
+
+  try {
+    const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -26,48 +35,41 @@ export async function updateSession(request: NextRequest) {
           );
         },
       },
+    });
+
+    // Refresh session; do not use getSession() here.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const pathname = request.nextUrl.pathname;
+    const isPublicAuthRoute =
+      pathname === "/login" || pathname.startsWith("/auth/");
+
+    const needsAuth =
+      pathname.startsWith("/campagna") ||
+      pathname.startsWith("/archivio") ||
+      pathname.startsWith("/onboarding") ||
+      pathname.startsWith("/api/campaigns") ||
+      pathname.startsWith("/api/chat") ||
+      pathname.startsWith("/api/profile");
+
+    if (!user && needsAuth) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
     }
-  );
 
-  // Refresh session; do not use getSession() here.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    if (user && isPublicAuthRoute) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/";
+      return NextResponse.redirect(redirectUrl);
+    }
 
-  const pathname = request.nextUrl.pathname;
-
-  const isPublicAuthRoute =
-    pathname === "/login" || pathname.startsWith("/auth/");
-  const isPublicProfile = pathname.startsWith("/u/");
-  const isStaticOrApi =
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/catalog") ||
-    pathname === "/favicon.ico";
-
-  const needsAuth =
-    pathname.startsWith("/campagna") ||
-    pathname.startsWith("/archivio") ||
-    pathname.startsWith("/onboarding") ||
-    pathname.startsWith("/api/campaigns") ||
-    pathname.startsWith("/api/chat") ||
-    pathname.startsWith("/api/profile");
-
-  if (!user && needsAuth) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return supabaseResponse;
+  } catch (error) {
+    console.error("Supabase session update failed:", error);
+    return NextResponse.next({ request });
   }
-
-  // Profile completeness is checked in pages (needs DB); middleware only gates auth.
-  if (user && isPublicAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
-  void isPublicProfile;
-  void isStaticOrApi;
-
-  return supabaseResponse;
 }

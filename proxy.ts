@@ -1,7 +1,11 @@
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+/**
+ * Next.js 16: Proxy replaces Middleware and defaults to the Node.js runtime.
+ * Keeping the old middleware.ts on Edge caused MIDDLEWARE_INVOCATION_FAILED on Vercel.
+ */
+export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
