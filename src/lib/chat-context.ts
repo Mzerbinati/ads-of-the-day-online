@@ -14,10 +14,12 @@ type ArchiveRow = Campaign & {
   personal_note: string | null;
 };
 
-export async function buildChatArchiveContext(): Promise<string> {
-  const picks = await getArchivePickRows();
-  const favorites = await getArchiveFavoriteRows();
-  const rated = await getArchiveRatedRows();
+export async function buildChatArchiveContext(
+  userId: string
+): Promise<string> {
+  const picks = await getArchivePickRows(userId);
+  const favorites = await getArchiveFavoriteRows(userId);
+  const rated = await getArchiveRatedRows(userId);
 
   const lines: string[] = [
     `Archivio personale ADS of the day (${picks.length} campagne mostrate).`,
@@ -76,12 +78,17 @@ export async function buildChatArchiveContext(): Promise<string> {
 
 export async function searchArchiveCampaigns(
   query: string,
-  limit = 20
+  limit = 20,
+  userId?: string
 ): Promise<string> {
   const q = query.trim().toLowerCase();
   if (!q) return "";
 
-  const rows: ArchiveRow[] = await searchArchiveCampaignRows(query, limit);
+  const rows: ArchiveRow[] = await searchArchiveCampaignRows(
+    query,
+    limit,
+    userId
+  );
 
   if (rows.length === 0) {
     return `Nessun risultato per "${query}".`;

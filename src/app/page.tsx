@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CampaignCard, CampaignCardWithDate } from "@/components/CampaignCard";
 import { CampaignMedia } from "@/components/CampaignMedia";
+import { LoginForm } from "@/components/LoginForm";
 import { SiteHeader } from "@/components/SiteHeader";
+import { getCurrentProfile, requireCompleteProfile } from "@/lib/auth";
 import { formatItalianDate } from "@/lib/daily";
 import {
   ensureDatabaseReady,
@@ -9,14 +11,48 @@ import {
   getOrCreateTodayPick,
   getRecentDailyPicks,
 } from "@/lib/db";
+import { isProfileComplete } from "@/lib/profile";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+function LandingPage() {
+  return (
+    <>
+      <SiteHeader showLogin />
+      <div className="mx-auto flex min-h-[calc(100vh-88px)] max-w-[960px] flex-col justify-center px-6 py-16">
+        <section className="glass-panel overflow-hidden p-8 md:p-12">
+          <p className="label mb-4">Creative archive</p>
+          <h1 className="headline mb-5 max-w-2xl">ADS of the day</h1>
+          <p className="mb-10 max-w-xl text-[17px] leading-relaxed text-secondary">
+            Una campagna pubblicitaria al giorno, scelta dall&apos;archivio. Accedi
+            per vedere oggi, i due giorni precedenti e il tuo spazio personale di
+            voti, note e preferiti.
+          </p>
+          <LoginForm />
+        </section>
+      </div>
+    </>
+  );
+}
+
 export default async function HomePage() {
+  const current = await getCurrentProfile();
+
+  if (!current) {
+    return <LandingPage />;
+  }
+
+  if (!isProfileComplete(current.profile)) {
+    redirect("/onboarding");
+  }
+
+  const { user, profile } = await requireCompleteProfile();
+
   await ensureDatabaseReady();
   const { date, campaign } = await getOrCreateTodayPick();
-  const recent = await getRecentDailyPicks(12);
-  const favorites = await getFavoriteCampaigns();
+  const recent = await getRecentDailyPicks(2, user.id);
+  const favorites = await getFavoriteCampaigns(user.id);
 
   if (!campaign) {
     return (
@@ -26,12 +62,17 @@ export default async function HomePage() {
     );
   }
 
+  const headerUser = {
+    displayName: profile.displayName || "Utente",
+    username: profile.username,
+    avatarUrl: profile.avatarUrl,
+  };
+
   return (
     <>
-      <SiteHeader date={date} />
+      <SiteHeader date={date} user={headerUser} />
 
       <div className="mx-auto max-w-[960px] px-6 pb-24 pt-8 md:pt-12">
-        {/* Oggi */}
         <section className="glass-panel mb-14 overflow-hidden p-6 md:p-10">
           <p className="label mb-6">Oggi · {formatItalianDate(date)}</p>
 
@@ -62,7 +103,6 @@ export default async function HomePage() {
           </Link>
         </section>
 
-        {/* Preferiti */}
         <section className="mb-14">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
@@ -89,16 +129,18 @@ export default async function HomePage() {
           )}
         </section>
 
-        {/* Giorni precedenti */}
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
               <p className="label mb-2">Archivio</p>
-              <h2 className="section-title">Giorni precedenti</h2>
+              <h2 className="section-title">Ultimi due giorni</h2>
             </div>
-            <span className="glass-chip px-3 py-1 text-[12px] font-medium text-secondary">
-              {recent.length}
-            </span>
+            <Link
+              href="/archivio"
+              className="glass-chip px-3 py-1 text-[12px] font-medium text-secondary transition hover:text-text"
+            >
+              Vedi archivio
+            </Link>
           </div>
 
           {recent.length > 0 ? (

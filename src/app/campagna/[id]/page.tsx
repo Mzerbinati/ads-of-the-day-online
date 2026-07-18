@@ -5,6 +5,7 @@ import { CampaignMeta } from "@/components/CampaignMeta";
 import { CampaignPersonalPanel } from "@/components/CampaignPersonalPanel";
 import { SheetSection } from "@/components/SheetSection";
 import { SiteHeader } from "@/components/SiteHeader";
+import { requireCompleteProfile } from "@/lib/auth";
 import { ensureDatabaseReady, getCampaignWithMeta } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +15,22 @@ export default async function CampaignPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { user, profile } = await requireCompleteProfile();
   await ensureDatabaseReady();
   const { id } = await params;
-  const campaign = await getCampaignWithMeta(id);
+  const campaign = await getCampaignWithMeta(id, user.id);
 
   if (!campaign) notFound();
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader
+        user={{
+          displayName: profile.displayName || "Utente",
+          username: profile.username,
+          avatarUrl: profile.avatarUrl,
+        }}
+      />
 
       <div className="mx-auto max-w-[960px] px-6 pb-24 pt-8">
         <Link

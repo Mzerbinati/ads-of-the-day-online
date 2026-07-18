@@ -4,6 +4,7 @@ import {
   searchArchiveCampaigns,
 } from "@/lib/chat-context";
 import { ensureDatabaseReady } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -22,6 +23,14 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
   try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Non autenticato" }, { status: 401 });
+    }
+
     await ensureDatabaseReady();
     const body = await request.json();
     const messages = (body.messages ?? []) as ChatMessage[];
@@ -31,8 +40,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Messaggio vuoto" }, { status: 400 });
     }
 
-    const archive = await buildChatArchiveContext();
-    const searchHits = await searchArchiveCampaigns(lastUser.content, 15);
+    const archive = await buildChatArchiveContext(user.id);
+    const searchHits = await searchArchiveCampaigns(
+      lastUser.content,
+      15,
+      user.id
+    );
 
     const system = [
       SYSTEM_PROMPT,

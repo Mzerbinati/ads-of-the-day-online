@@ -1,4 +1,4 @@
-import { asc, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { buildCampaignDetails, DETAILS_VERSION, needsDetails } from "../campaign-detail";
@@ -9,7 +9,9 @@ import {
   campaigns,
   dailyPicks,
   meta,
+  profiles,
 } from "./schema";
+import type { Profile } from "../profile";
 import { isEmbeddableVideoUrl, resolveCampaignVideoUrl } from "../video";
 import type {
   Campaign,
@@ -102,15 +104,6 @@ export async function importCampaigns(
             raw: campaign.raw,
           },
         });
-
-      await tx
-        .insert(meta)
-        .values({
-          campaignId: campaign.id,
-          favorite: 0,
-          status: "inbox",
-        })
-        .onConflictDoNothing();
 
       if (existing.length > 0) updated++;
       else inserted++;
@@ -285,7 +278,8 @@ export function ensureVideoUrl(campaign: Campaign): string {
 }
 
 export async function getCampaignWithMeta(
-  id: string
+  id: string,
+  userId: string
 ): Promise<CampaignWithMeta | null> {
   const campaign = await ensureCampaignDetails(id);
   const db = getDb();
@@ -296,7 +290,7 @@ export async function getCampaignWithMeta(
       personalNote: meta.personalNote,
     })
     .from(meta)
-    .where(eq(meta.campaignId, id))
+    .where(and(eq(meta.campaignId, id), eq(meta.userId, userId)))
     .limit(1);
 
   const row = rows[0];
@@ -416,7 +410,8 @@ function mapListItem(
 }
 
 export async function getRecentDailyPicks(
-  limit = 14
+  limit = 14,
+  userId?: string
 ): Promise<CampaignListItem[]> {
   const today = getTodayDateString();
   const db = getDb();
@@ -429,7 +424,12 @@ export async function getRecentDailyPicks(
     })
     .from(dailyPicks)
     .innerJoin(campaigns, eq(campaigns.id, dailyPicks.campaignId))
-    .leftJoin(meta, eq(meta.campaignId, campaigns.id))
+    .leftJoin(
+      meta,
+      userId
+        ? and(eq(meta.campaignId, campaigns.id), eq(meta.userId, userId))
+        : sql`false`
+    )
     .where(sql`${dailyPicks.date} < ${today}`)
     .orderBy(desc(dailyPicks.date))
     .limit(limit);
@@ -444,7 +444,9 @@ export async function getRecentDailyPicks(
   );
 }
 
-export async function getFavoriteCampaigns(): Promise<CampaignListItem[]> {
+export async function getFavoriteCampaigns(
+  userId: string
+): Promise<CampaignListItem[]> {
   const db = getDb();
   const rows = await db
     .select({
@@ -454,7 +456,7 @@ export async function getFavoriteCampaigns(): Promise<CampaignListItem[]> {
     })
     .from(campaigns)
     .innerJoin(meta, eq(meta.campaignId, campaigns.id))
-    .where(eq(meta.favorite, 1))
+    .where(and(eq(meta.favorite, 1), eq(meta.userId, userId)))
     .orderBy(sql`${meta.rating} DESC NULLS LAST`, asc(campaigns.title));
 
   return rows.map((row) =>
@@ -472,63 +474,71 @@ export async function skipTodayPick(): Promise<Campaign | null> {
 
 export async function setCampaignRating(
   campaignId: string,
-  rating: number | null
+  rating: number | null,
+  userId: string
 ): Promise<void> {
   const db = getDb();
   await db
     .insert(meta)
     .values({
+      userId,
       campaignId,
       favorite: 0,
       rating,
       status: "inbox",
     })
     .onConflictDoUpdate({
-      target: meta.campaignId,
+      target: [meta.userId, meta.campaignId],
       set: { rating },
     });
 }
 
 export async function setCampaignFavorite(
   campaignId: string,
-  favorite: boolean
+  favorite: boolean,
+  userId: string
 ): Promise<void> {
   const db = getDb();
   await db
     .insert(meta)
     .values({
+      userId,
       campaignId,
       favorite: favorite ? 1 : 0,
       status: "inbox",
     })
     .onConflictDoUpdate({
-      target: meta.campaignId,
+      target: [meta.userId, meta.campaignId],
       set: { favorite: favorite ? 1 : 0 },
     });
 }
 
 export async function setPersonalNote(
   campaignId: string,
-  note: string | null
+  note: string | null,
+  userId: string
 ): Promise<void> {
   const trimmed = note?.trim() || null;
   const db = getDb();
   await db
     .insert(meta)
     .values({
+      userId,
       campaignId,
       favorite: 0,
       personalNote: trimmed,
       status: "inbox",
     })
     .onConflictDoUpdate({
-      target: meta.campaignId,
+      target: [meta.userId, meta.campaignId],
       set: { personalNote: trimmed },
     });
 }
 
 /** Used by chat-context for archive / search queries. */
-export async function getArchivePickRows(): Promise<
+export async function getArchivePickRows(
+  userId: string
+): Promise<
   Array<
     Campaign & {
       pick_date: string | null;
@@ -549,7 +559,10 @@ export async function getArchivePickRows(): Promise<
     })
     .from(dailyPicks)
     .innerJoin(campaigns, eq(campaigns.id, dailyPicks.campaignId))
-    .leftJoin(meta, eq(meta.campaignId, campaigns.id))
+    .leftJoin(
+      meta,
+      and(eq(meta.campaignId, campaigns.id), eq(meta.userId, userId))
+    )
     .orderBy(desc(dailyPicks.date));
 
   return rows.map((row) => ({
@@ -561,7 +574,9 @@ export async function getArchivePickRows(): Promise<
   }));
 }
 
-export async function getArchiveFavoriteRows(): Promise<
+export async function getArchiveFavoriteRows(
+  userId: string
+): Promise<
   Array<
     Campaign & {
       rating: number | null;
@@ -580,7 +595,7 @@ export async function getArchiveFavoriteRows(): Promise<
     })
     .from(campaigns)
     .innerJoin(meta, eq(meta.campaignId, campaigns.id))
-    .where(eq(meta.favorite, 1))
+    .where(and(eq(meta.favorite, 1), eq(meta.userId, userId)))
     .orderBy(sql`${meta.rating} DESC NULLS LAST`, asc(campaigns.title));
 
   return rows.map((row) => ({
@@ -591,7 +606,9 @@ export async function getArchiveFavoriteRows(): Promise<
   }));
 }
 
-export async function getArchiveRatedRows(): Promise<
+export async function getArchiveRatedRows(
+  userId: string
+): Promise<
   Array<
     Campaign & {
       rating: number | null;
@@ -610,7 +627,7 @@ export async function getArchiveRatedRows(): Promise<
     })
     .from(campaigns)
     .innerJoin(meta, eq(meta.campaignId, campaigns.id))
-    .where(isNotNull(meta.rating))
+    .where(and(isNotNull(meta.rating), eq(meta.userId, userId)))
     .orderBy(desc(meta.rating), asc(campaigns.title));
 
   return rows.map((row) => ({
@@ -623,7 +640,8 @@ export async function getArchiveRatedRows(): Promise<
 
 export async function searchArchiveCampaignRows(
   query: string,
-  limit = 20
+  limit = 20,
+  userId?: string
 ): Promise<
   Array<
     Campaign & {
@@ -649,7 +667,12 @@ export async function searchArchiveCampaignRows(
     })
     .from(campaigns)
     .leftJoin(dailyPicks, eq(dailyPicks.campaignId, campaigns.id))
-    .leftJoin(meta, eq(meta.campaignId, campaigns.id))
+    .leftJoin(
+      meta,
+      userId
+        ? and(eq(meta.campaignId, campaigns.id), eq(meta.userId, userId))
+        : sql`false`
+    )
     .where(
       sql`(
         lower(${campaigns.title}) LIKE ${like}
@@ -675,6 +698,108 @@ export async function searchArchiveCampaignRows(
     favorite: row.favorite ?? 0,
     personal_note: row.personal_note,
   }));
+}
+
+function mapProfile(row: typeof profiles.$inferSelect): Profile {
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    username: row.username,
+    creativeRole: row.creativeRole,
+    creativeRoleOther: row.creativeRoleOther,
+    avatarUrl: row.avatarUrl,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export async function getProfileByUserId(
+  userId: string
+): Promise<Profile | null> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.id, userId))
+    .limit(1);
+  return rows[0] ? mapProfile(rows[0]) : null;
+}
+
+export async function getProfileByUsername(
+  username: string
+): Promise<Profile | null> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(profiles)
+    .where(eq(profiles.username, username))
+    .limit(1);
+  return rows[0] ? mapProfile(rows[0]) : null;
+}
+
+export async function ensureProfileRow(
+  userId: string
+): Promise<Profile> {
+  const existing = await getProfileByUserId(userId);
+  if (existing) return existing;
+
+  const db = getDb();
+  await db.insert(profiles).values({ id: userId }).onConflictDoNothing();
+  const created = await getProfileByUserId(userId);
+  if (!created) throw new Error("Impossibile creare il profilo");
+  return created;
+}
+
+export async function upsertProfile(input: {
+  userId: string;
+  displayName: string;
+  username: string;
+  creativeRole: string;
+  creativeRoleOther: string | null;
+  avatarUrl?: string | null;
+}): Promise<Profile> {
+  const db = getDb();
+  await db
+    .insert(profiles)
+    .values({
+      id: input.userId,
+      displayName: input.displayName,
+      username: input.username,
+      creativeRole: input.creativeRole,
+      creativeRoleOther: input.creativeRoleOther,
+      avatarUrl: input.avatarUrl ?? null,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: {
+        displayName: input.displayName,
+        username: input.username,
+        creativeRole: input.creativeRole,
+        creativeRoleOther: input.creativeRoleOther,
+        avatarUrl: input.avatarUrl ?? null,
+        updatedAt: new Date(),
+      },
+    });
+
+  const profile = await getProfileByUserId(input.userId);
+  if (!profile) throw new Error("Profilo non trovato dopo il salvataggio");
+  return profile;
+}
+
+export async function isUsernameTaken(
+  username: string,
+  excludeUserId?: string
+): Promise<boolean> {
+  const db = getDb();
+  const rows = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.username, username))
+    .limit(1);
+  if (rows.length === 0) return false;
+  if (excludeUserId && rows[0].id === excludeUserId) return false;
+  return true;
 }
 
 export async function ensureDatabaseReady(): Promise<void> {

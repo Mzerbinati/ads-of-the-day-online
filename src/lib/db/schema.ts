@@ -5,6 +5,8 @@ import {
   primaryKey,
   pgTable,
   text,
+  uuid,
+  timestamp,
 } from "drizzle-orm/pg-core";
 
 export const campaigns = pgTable("campaigns", {
@@ -67,11 +69,30 @@ export const campaignAreas = pgTable(
   (table) => [primaryKey({ columns: [table.campaignId, table.areaId] })]
 );
 
+/** Linked to auth.users.id (FK enforced in SQL migration). */
+export const profiles = pgTable("profiles", {
+  id: uuid("id").primaryKey(),
+  displayName: text("display_name"),
+  username: text("username").unique(),
+  creativeRole: text("creative_role"),
+  creativeRoleOther: text("creative_role_other"),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+});
+
 export const meta = pgTable(
   "meta",
   {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
     campaignId: text("campaign_id")
-      .primaryKey()
+      .notNull()
       .references(() => campaigns.id),
     favorite: integer("favorite").notNull().default(0),
     rating: integer("rating"),
@@ -79,6 +100,7 @@ export const meta = pgTable(
     personalNote: text("personal_note"),
   },
   (table) => [
+    primaryKey({ columns: [table.userId, table.campaignId] }),
     check(
       "meta_rating_check",
       sql`${table.rating} IS NULL OR (${table.rating} >= 1 AND ${table.rating} <= 5)`

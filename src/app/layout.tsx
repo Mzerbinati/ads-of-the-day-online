@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArchiveChat } from "@/components/ArchiveChat";
+import { ArchiveChatGate } from "@/components/ArchiveChatGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         <div className="mesh-bg" aria-hidden />
         <main>{children}</main>
-        <ArchiveChat />
+        <ArchiveChatGate />
       </body>
     </html>
   );

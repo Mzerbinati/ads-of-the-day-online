@@ -22,7 +22,6 @@ import {
   campaigns,
   dailyPicks,
   folders,
-  meta,
   notes,
 } from "../src/lib/db/schema";
 
@@ -108,23 +107,9 @@ async function main(): Promise<void> {
     const rows = sqlite.prepare("SELECT * FROM meta").all() as Array<
       Record<string, unknown>
     >;
-    console.log(`  meta: ${rows.length}`);
-    if (rows.length > 0) {
-      const chunk = 200;
-      const mapped = rows.map((r) => ({
-        campaignId: String(r.campaign_id),
-        favorite: Number(r.favorite ?? 0),
-        rating: r.rating == null ? null : Number(r.rating),
-        status: String(r.status ?? "inbox"),
-        personalNote: r.personal_note != null ? String(r.personal_note) : null,
-      }));
-      for (let i = 0; i < mapped.length; i += chunk) {
-        await db
-          .insert(meta)
-          .values(mapped.slice(i, i + chunk))
-          .onConflictDoNothing();
-      }
-    }
+    console.log(
+      `  meta: ${rows.length} (saltate — ora meta è per-utente con user_id; riparti da zero)`
+    );
   }
 
   if (tableExists(sqlite, "daily_picks")) {
