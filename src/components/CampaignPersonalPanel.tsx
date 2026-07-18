@@ -1,7 +1,9 @@
 "use client";
 
+import type { GlobalRating } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { GlobalRatingBadge } from "./GlobalRatingBadge";
 import { StarRating } from "./StarRating";
 
 interface CampaignPersonalPanelProps {
@@ -9,6 +11,7 @@ interface CampaignPersonalPanelProps {
   initialRating: number | null;
   initialFavorite: boolean;
   initialNote: string | null;
+  globalRating: GlobalRating;
 }
 
 export function CampaignPersonalPanel({
@@ -16,6 +19,7 @@ export function CampaignPersonalPanel({
   initialRating,
   initialFavorite,
   initialNote,
+  globalRating,
 }: CampaignPersonalPanelProps) {
   const router = useRouter();
   const [rating, setRating] = useState(initialRating);
@@ -52,10 +56,10 @@ export function CampaignPersonalPanel({
   return (
     <div className="mt-8 space-y-5">
       <div className="glass-panel p-6 md:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-white/35 pb-5">
           <div>
-            <p className="label mb-3">Valutazione</p>
-            <StarRating value={rating} onChange={updateRating} />
+            <p className="label mb-2">Voto globale</p>
+            <GlobalRatingBadge global={globalRating} className="text-[15px]" />
           </div>
           <button
             type="button"
@@ -66,6 +70,14 @@ export function CampaignPersonalPanel({
           >
             {favorite ? "★ Nei preferiti" : "Aggiungi ai preferiti"}
           </button>
+        </div>
+
+        <div>
+          <p className="label mb-3">Il tuo voto</p>
+          <StarRating value={rating} onChange={updateRating} />
+          <p className="mt-2 text-[13px] text-tertiary">
+            Solo tu vedi e modifichi questo voto. Contribuisce alla media globale.
+          </p>
         </div>
       </div>
 

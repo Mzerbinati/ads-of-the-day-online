@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CampaignMedia } from "@/components/CampaignMedia";
 import { CampaignMeta } from "@/components/CampaignMeta";
 import { CampaignPersonalPanel } from "@/components/CampaignPersonalPanel";
+import { GlobalRatingBadge } from "@/components/GlobalRatingBadge";
 import { SheetSection } from "@/components/SheetSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { requireCompleteProfile } from "@/lib/auth";
@@ -43,7 +44,8 @@ export default async function CampaignPage({
         <div className="glass-panel mb-8 p-6 md:p-10">
           <header className="mb-8">
             <p className="label mb-4">Scheda campagna</p>
-            <h1 className="headline-sm mb-5 max-w-3xl">{campaign.title}</h1>
+            <h1 className="headline-sm mb-3 max-w-3xl">{campaign.title}</h1>
+            <GlobalRatingBadge global={campaign.global_rating} className="mb-5" />
             <CampaignMeta campaign={campaign} />
           </header>
 
@@ -67,6 +69,7 @@ export default async function CampaignPage({
           initialRating={campaign.rating}
           initialFavorite={campaign.favorite}
           initialNote={campaign.personal_note}
+          globalRating={campaign.global_rating}
         />
       </div>
     </>

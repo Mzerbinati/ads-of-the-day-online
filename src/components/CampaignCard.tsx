@@ -3,6 +3,7 @@ import Link from "next/link";
 import { formatItalianDateShort } from "@/lib/daily";
 import type { CampaignListItem } from "@/lib/types";
 import { getCampaignThumbnail } from "@/lib/video";
+import { formatGlobalRating } from "./GlobalRatingBadge";
 
 interface CampaignCardProps {
   campaign: CampaignListItem;
@@ -11,6 +12,8 @@ interface CampaignCardProps {
 
 export function CampaignCard({ campaign, dateLabel }: CampaignCardProps) {
   const thumb = getCampaignThumbnail(campaign);
+  const globalLabel = formatGlobalRating(campaign.global_rating);
+  const hasGlobalVotes = campaign.global_rating.count > 0;
 
   return (
     <Link href={`/campagna/${campaign.id}`} className="glass-card group block">
@@ -48,12 +51,13 @@ export function CampaignCard({ campaign, dateLabel }: CampaignCardProps) {
         <p className="text-[13px] text-secondary">
           {campaign.brand} · {campaign.year}
         </p>
-        {campaign.rating && (
-          <p className="mt-2 text-[12px] text-amber-600">
-            {"★".repeat(campaign.rating)}
-            {"☆".repeat(5 - campaign.rating)}
-          </p>
-        )}
+        <p
+          className={`mt-2 text-[12px] ${
+            hasGlobalVotes ? "text-amber-700/90" : "text-tertiary"
+          }`}
+        >
+          {hasGlobalVotes ? `★ ${globalLabel}` : globalLabel}
+        </p>
       </div>
     </Link>
   );

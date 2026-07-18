@@ -32,16 +32,23 @@ export interface CampaignInput {
   raw: string;
 }
 
+export interface GlobalRating {
+  average: number | null;
+  count: number;
+}
+
 export interface CampaignListItem extends Campaign {
   rating: number | null;
   favorite: boolean;
   pick_date?: string;
+  global_rating: GlobalRating;
 }
 
 export interface CampaignWithMeta extends Campaign {
   rating: number | null;
   favorite: boolean;
   personal_note: string | null;
+  global_rating: GlobalRating;
 }
 
 export interface ImportResult {

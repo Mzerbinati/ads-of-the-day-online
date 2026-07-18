@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import fs from "fs";
 import path from "path";
 import { buildCampaignDetails, DETAILS_VERSION, needsDetails } from "../campaign-detail";
@@ -19,6 +19,7 @@ import type {
   CampaignListItem,
   CampaignWithMeta,
   CatalogStats,
+  GlobalRating,
   ImportResult,
 } from "../types";
 
@@ -277,6 +278,59 @@ export function ensureVideoUrl(campaign: Campaign): string {
   return resolveCampaignVideoUrl(campaign);
 }
 
+export async function getCampaignGlobalRating(
+  campaignId: string
+): Promise<GlobalRating> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      average: sql<number | null>`avg(${meta.rating})::float`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(meta)
+    .where(and(eq(meta.campaignId, campaignId), isNotNull(meta.rating)));
+
+  const count = rows[0]?.count ?? 0;
+  if (count === 0) {
+    return { average: null, count: 0 };
+  }
+
+  return {
+    average: rows[0]?.average ?? null,
+    count,
+  };
+}
+
+export async function getCampaignGlobalRatings(
+  campaignIds: string[]
+): Promise<Map<string, GlobalRating>> {
+  const result = new Map<string, GlobalRating>();
+  for (const id of campaignIds) {
+    result.set(id, { average: null, count: 0 });
+  }
+  if (campaignIds.length === 0) return result;
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      campaignId: meta.campaignId,
+      average: sql<number | null>`avg(${meta.rating})::float`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(meta)
+    .where(and(inArray(meta.campaignId, campaignIds), isNotNull(meta.rating)))
+    .groupBy(meta.campaignId);
+
+  for (const row of rows) {
+    result.set(row.campaignId, {
+      average: row.count > 0 ? row.average : null,
+      count: row.count,
+    });
+  }
+
+  return result;
+}
+
 export async function getCampaignWithMeta(
   id: string,
   userId: string
@@ -294,11 +348,14 @@ export async function getCampaignWithMeta(
     .limit(1);
 
   const row = rows[0];
+  const global_rating = await getCampaignGlobalRating(id);
+
   return {
     ...campaign,
     rating: row?.rating ?? null,
     favorite: Boolean(row?.favorite),
     personal_note: row?.personalNote ?? null,
+    global_rating,
   };
 }
 
@@ -401,11 +458,13 @@ function mapListItem(
     rating: number | null;
     favorite: number;
     pick_date?: string;
+    global_rating?: GlobalRating;
   }
 ): CampaignListItem {
   return {
     ...row,
     favorite: Boolean(row.favorite),
+    global_rating: row.global_rating ?? { average: null, count: 0 },
   };
 }
 
@@ -434,12 +493,17 @@ export async function getRecentDailyPicks(
     .orderBy(desc(dailyPicks.date))
     .limit(limit);
 
+  const globals = await getCampaignGlobalRatings(
+    rows.map((row) => row.campaign.id)
+  );
+
   return rows.map((row) =>
     mapListItem({
       ...mapCampaign(row.campaign),
       rating: row.rating,
       favorite: row.favorite ?? 0,
       pick_date: row.pick_date,
+      global_rating: globals.get(row.campaign.id),
     })
   );
 }
@@ -459,11 +523,16 @@ export async function getFavoriteCampaigns(
     .where(and(eq(meta.favorite, 1), eq(meta.userId, userId)))
     .orderBy(sql`${meta.rating} DESC NULLS LAST`, asc(campaigns.title));
 
+  const globals = await getCampaignGlobalRatings(
+    rows.map((row) => row.campaign.id)
+  );
+
   return rows.map((row) =>
     mapListItem({
       ...mapCampaign(row.campaign),
       rating: row.rating,
       favorite: row.favorite,
+      global_rating: globals.get(row.campaign.id),
     })
   );
 }
