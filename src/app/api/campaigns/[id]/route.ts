@@ -13,7 +13,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    ensureDatabaseReady();
+    await ensureDatabaseReady();
     const { id } = await params;
     const body = await request.json();
 
@@ -22,15 +22,15 @@ export async function PATCH(
       if (rating !== null && (rating < 1 || rating > 5)) {
         return NextResponse.json({ error: "Voto non valido" }, { status: 400 });
       }
-      setCampaignRating(id, rating);
+      await setCampaignRating(id, rating);
     }
 
     if ("favorite" in body) {
-      setCampaignFavorite(id, Boolean(body.favorite));
+      await setCampaignFavorite(id, Boolean(body.favorite));
     }
 
     if ("personal_note" in body) {
-      setPersonalNote(id, body.personal_note as string | null);
+      await setPersonalNote(id, body.personal_note as string | null);
     }
 
     return NextResponse.json({ ok: true });

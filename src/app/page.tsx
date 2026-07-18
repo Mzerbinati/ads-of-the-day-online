@@ -13,10 +13,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  ensureDatabaseReady();
-  const { date, campaign } = getOrCreateTodayPick();
-  const recent = getRecentDailyPicks(12);
-  const favorites = getFavoriteCampaigns();
+  await ensureDatabaseReady();
+  const { date, campaign } = await getOrCreateTodayPick();
+  const recent = await getRecentDailyPicks(12);
+  const favorites = await getFavoriteCampaigns();
 
   if (!campaign) {
     return (

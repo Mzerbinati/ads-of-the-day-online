@@ -14,9 +14,9 @@ export default async function CampaignPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  ensureDatabaseReady();
+  await ensureDatabaseReady();
   const { id } = await params;
-  const campaign = getCampaignWithMeta(id);
+  const campaign = await getCampaignWithMeta(id);
 
   if (!campaign) notFound();
 

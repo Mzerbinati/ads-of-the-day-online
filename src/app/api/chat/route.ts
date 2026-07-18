@@ -22,7 +22,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
   try {
-    ensureDatabaseReady();
+    await ensureDatabaseReady();
     const body = await request.json();
     const messages = (body.messages ?? []) as ChatMessage[];
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Messaggio vuoto" }, { status: 400 });
     }
 
-    const archive = buildChatArchiveContext();
-    const searchHits = searchArchiveCampaigns(lastUser.content, 15);
+    const archive = await buildChatArchiveContext();
+    const searchHits = await searchArchiveCampaigns(lastUser.content, 15);
 
     const system = [
       SYSTEM_PROMPT,

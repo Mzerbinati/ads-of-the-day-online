@@ -1,5 +1,10 @@
-import { getDb } from "./db";
 import { formatItalianDateShort } from "./daily";
+import {
+  getArchiveFavoriteRows,
+  getArchivePickRows,
+  getArchiveRatedRows,
+  searchArchiveCampaignRows,
+} from "./db";
 import type { Campaign } from "./types";
 
 type ArchiveRow = Campaign & {
@@ -9,56 +14,10 @@ type ArchiveRow = Campaign & {
   personal_note: string | null;
 };
 
-export function buildChatArchiveContext(): string {
-  const database = getDb();
-
-  const picks = database
-    .prepare(
-      `
-      SELECT c.*, dp.date as pick_date, m.rating, m.favorite, m.personal_note
-      FROM daily_picks dp
-      JOIN campaigns c ON c.id = dp.campaign_id
-      LEFT JOIN meta m ON m.campaign_id = c.id
-      ORDER BY dp.date DESC
-    `
-    )
-    .all() as ArchiveRow[];
-
-  const favorites = database
-    .prepare(
-      `
-      SELECT c.*, m.rating, m.favorite, m.personal_note
-      FROM campaigns c
-      JOIN meta m ON m.campaign_id = c.id
-      WHERE m.favorite = 1
-      ORDER BY m.rating DESC NULLS LAST, c.title ASC
-    `
-    )
-    .all() as Array<
-    Campaign & {
-      rating: number | null;
-      favorite: number;
-      personal_note: string | null;
-    }
-  >;
-
-  const rated = database
-    .prepare(
-      `
-      SELECT c.*, m.rating, m.favorite, m.personal_note
-      FROM campaigns c
-      JOIN meta m ON m.campaign_id = c.id
-      WHERE m.rating IS NOT NULL
-      ORDER BY m.rating DESC, c.title ASC
-    `
-    )
-    .all() as Array<
-    Campaign & {
-      rating: number | null;
-      favorite: number;
-      personal_note: string | null;
-    }
-  >;
+export async function buildChatArchiveContext(): Promise<string> {
+  const picks = await getArchivePickRows();
+  const favorites = await getArchiveFavoriteRows();
+  const rated = await getArchiveRatedRows();
 
   const lines: string[] = [
     `Archivio personale ADS of the day (${picks.length} campagne mostrate).`,
@@ -115,35 +74,14 @@ export function buildChatArchiveContext(): string {
   return lines.join("\n");
 }
 
-export function searchArchiveCampaigns(query: string, limit = 20): string {
+export async function searchArchiveCampaigns(
+  query: string,
+  limit = 20
+): Promise<string> {
   const q = query.trim().toLowerCase();
   if (!q) return "";
 
-  const database = getDb();
-  const like = `%${q}%`;
-
-  const rows = database
-    .prepare(
-      `
-      SELECT c.*, dp.date as pick_date, m.rating, m.favorite, m.personal_note
-      FROM campaigns c
-      LEFT JOIN daily_picks dp ON dp.campaign_id = c.id
-      LEFT JOIN meta m ON m.campaign_id = c.id
-      WHERE lower(c.title) LIKE ?
-         OR lower(c.brand) LIKE ?
-         OR lower(c.agency) LIKE ?
-         OR lower(c.category) LIKE ?
-         OR lower(c.tier) LIKE ?
-         OR lower(COALESCE(c.insight, '')) LIKE ?
-         OR lower(COALESCE(m.personal_note, '')) LIKE ?
-      ORDER BY
-        CASE WHEN dp.date IS NOT NULL THEN 0 ELSE 1 END,
-        dp.date DESC,
-        c.title ASC
-      LIMIT ?
-    `
-    )
-    .all(like, like, like, like, like, like, like, limit) as ArchiveRow[];
+  const rows: ArchiveRow[] = await searchArchiveCampaignRows(query, limit);
 
   if (rows.length === 0) {
     return `Nessun risultato per "${query}".`;
