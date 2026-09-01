@@ -12,7 +12,7 @@ export interface CuratedCampaign {
   brand: string;
   agency: string;
   year: string;
-  tier: "GOLD" | "TITANIUM" | "GRAND PRIX";
+  tier: string;
   category: string;
   url: string;
   team: string;

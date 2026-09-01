@@ -5,6 +5,7 @@ import { buildCampaignDetails, DETAILS_VERSION, needsDetails } from "../campaign
 import { getTodayDateString, seededIndex } from "../daily";
 import { getDb } from "./client";
 import { ensureCannesCuratedFolder } from "./cannes-folder";
+import { ensureSmallBrandsCuratedFolder } from "./small-brands-folder";
 import {
   appState,
   campaignFolders,
@@ -970,6 +971,7 @@ export async function ensureDatabaseReady(): Promise<void> {
   }
 
   await ensureCannesCuratedFolder();
+  await ensureSmallBrandsCuratedFolder();
 
   ready = true;
 }
