@@ -4,10 +4,13 @@ import path from "path";
 import { buildCampaignDetails, DETAILS_VERSION, needsDetails } from "../campaign-detail";
 import { getTodayDateString, seededIndex } from "../daily";
 import { getDb } from "./client";
+import { ensureCannesCuratedFolder } from "./cannes-folder";
 import {
   appState,
+  campaignFolders,
   campaigns,
   dailyPicks,
+  folders,
   meta,
   profiles,
 } from "./schema";
@@ -508,6 +511,41 @@ export async function getRecentDailyPicks(
   );
 }
 
+export async function getFolderCampaigns(
+  folderSlug: string,
+  userId: string
+): Promise<CampaignListItem[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      campaign: campaigns,
+      rating: meta.rating,
+      favorite: meta.favorite,
+    })
+    .from(campaignFolders)
+    .innerJoin(folders, eq(folders.id, campaignFolders.folderId))
+    .innerJoin(campaigns, eq(campaigns.id, campaignFolders.campaignId))
+    .leftJoin(
+      meta,
+      and(eq(meta.campaignId, campaigns.id), eq(meta.userId, userId))
+    )
+    .where(eq(folders.name, folderSlug))
+    .orderBy(desc(campaigns.year), asc(campaigns.title));
+
+  const globals = await getCampaignGlobalRatings(
+    rows.map((row) => row.campaign.id)
+  );
+
+  return rows.map((row) =>
+    mapListItem({
+      ...mapCampaign(row.campaign),
+      rating: row.rating,
+      favorite: row.favorite ?? 0,
+      global_rating: globals.get(row.campaign.id),
+    })
+  );
+}
+
 export async function getFavoriteCampaigns(
   userId: string
 ): Promise<CampaignListItem[]> {
@@ -930,6 +968,8 @@ export async function ensureDatabaseReady(): Promise<void> {
   if (count === 0 && fs.existsSync(CACHE_PATH)) {
     await importFromCacheFile();
   }
+
+  await ensureCannesCuratedFolder();
 
   ready = true;
 }

@@ -8,9 +8,14 @@ import { formatItalianDate } from "@/lib/daily";
 import {
   ensureDatabaseReady,
   getFavoriteCampaigns,
+  getFolderCampaigns,
   getOrCreateTodayPick,
   getRecentDailyPicks,
 } from "@/lib/db";
+import {
+  CANNES_CURATED_FOLDER_SLUG,
+  CANNES_CURATED_FOLDER_TITLE,
+} from "@/lib/cannes-curated";
 import { isProfileComplete } from "@/lib/profile";
 import { redirect } from "next/navigation";
 
@@ -53,6 +58,11 @@ export default async function HomePage() {
   const { date, campaign } = await getOrCreateTodayPick();
   const recent = await getRecentDailyPicks(2, user.id);
   const favorites = await getFavoriteCampaigns(user.id);
+  const cannesCurated = await getFolderCampaigns(
+    CANNES_CURATED_FOLDER_SLUG,
+    user.id
+  );
+  const cannesPreview = cannesCurated.slice(0, 6);
 
   if (!campaign) {
     return (
@@ -124,6 +134,39 @@ export default async function HomePage() {
             <div className="empty-glass px-6 py-10 text-center">
               <p className="text-[15px] text-secondary">
                 Nessun preferito ancora. Aggiungili dalla scheda campagna.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="mb-14">
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="label mb-2">Raccolta</p>
+              <h2 className="section-title">{CANNES_CURATED_FOLDER_TITLE}</h2>
+              <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-secondary">
+                Campagne Oro, Titanium e Grand Prix dal 2015 — schede con
+                persone, agenzia, insight e altre info per l&apos;analisi.
+              </p>
+            </div>
+            <Link
+              href="/raccolta/cannes-oro-platino"
+              className="glass-chip shrink-0 px-3 py-1 text-[12px] font-medium text-secondary transition hover:text-text"
+            >
+              Vedi tutte · {cannesCurated.length}
+            </Link>
+          </div>
+
+          {cannesPreview.length > 0 ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {cannesPreview.map((item) => (
+                <CampaignCard key={item.id} campaign={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-glass px-6 py-10 text-center">
+              <p className="text-[15px] text-secondary">
+                Raccolta in caricamento — ricarica tra qualche secondo.
               </p>
             </div>
           )}
