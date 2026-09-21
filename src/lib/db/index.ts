@@ -333,9 +333,21 @@ export async function getCampaignGlobalRatings(
 
 export async function getCampaignWithMeta(
   id: string,
-  userId: string
+  userId?: string
 ): Promise<CampaignWithMeta | null> {
   const campaign = await ensureCampaignDetails(id);
+  const global_rating = await getCampaignGlobalRating(id);
+
+  if (!userId) {
+    return {
+      ...campaign,
+      rating: null,
+      favorite: false,
+      personal_note: null,
+      global_rating,
+    };
+  }
+
   const db = getDb();
   const rows = await db
     .select({
@@ -348,7 +360,6 @@ export async function getCampaignWithMeta(
     .limit(1);
 
   const row = rows[0];
-  const global_rating = await getCampaignGlobalRating(id);
 
   return {
     ...campaign,

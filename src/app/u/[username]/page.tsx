@@ -34,7 +34,6 @@ export default async function PublicProfilePage({
   return (
     <>
       <SiteHeader
-        showLogin={!viewer}
         user={
           viewerProfile && isProfileComplete(viewerProfile)
             ? {

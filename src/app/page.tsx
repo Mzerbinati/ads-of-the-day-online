@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { CampaignCard, CampaignCardWithDate } from "@/components/CampaignCard";
 import { CampaignMedia } from "@/components/CampaignMedia";
-import { LoginForm } from "@/components/LoginForm";
 import { SiteHeader } from "@/components/SiteHeader";
-import { getCurrentProfile, requireCompleteProfile } from "@/lib/auth";
+import { getCurrentProfile } from "@/lib/auth";
 import { formatItalianDate } from "@/lib/daily";
 import {
   ensureDatabaseReady,
@@ -12,47 +11,19 @@ import {
   getRecentDailyPicks,
 } from "@/lib/db";
 import { isProfileComplete } from "@/lib/profile";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-function LandingPage() {
-  return (
-    <>
-      <SiteHeader showLogin />
-      <div className="mx-auto flex min-h-[calc(100vh-88px)] max-w-[960px] flex-col justify-center px-6 py-16">
-        <section className="glass-panel overflow-hidden p-8 md:p-12">
-          <p className="label mb-4">Creative archive</p>
-          <h1 className="headline mb-5 max-w-2xl">ADS of the day</h1>
-          <p className="mb-10 max-w-xl text-[17px] leading-relaxed text-secondary">
-            Una campagna pubblicitaria al giorno, scelta dall&apos;archivio. Accedi
-            per vedere oggi, i due giorni precedenti e il tuo spazio personale di
-            voti, note e preferiti.
-          </p>
-          <LoginForm />
-        </section>
-      </div>
-    </>
-  );
-}
-
 export default async function HomePage() {
-  const current = await getCurrentProfile();
-
-  if (!current) {
-    return <LandingPage />;
-  }
-
-  if (!isProfileComplete(current.profile)) {
-    redirect("/onboarding");
-  }
-
-  const { user, profile } = await requireCompleteProfile();
-
   await ensureDatabaseReady();
+  const current = await getCurrentProfile();
+  const profile =
+    current && isProfileComplete(current.profile) ? current.profile : null;
+  const userId = profile ? current!.user.id : undefined;
+
   const { date, campaign } = await getOrCreateTodayPick();
-  const recent = await getRecentDailyPicks(2, user.id);
-  const favorites = await getFavoriteCampaigns(user.id);
+  const recent = await getRecentDailyPicks(2, userId);
+  const favorites = userId ? await getFavoriteCampaigns(userId) : [];
 
   if (!campaign) {
     return (
@@ -62,11 +33,13 @@ export default async function HomePage() {
     );
   }
 
-  const headerUser = {
-    displayName: profile.displayName || "Utente",
-    username: profile.username,
-    avatarUrl: profile.avatarUrl,
-  };
+  const headerUser = profile
+    ? {
+        displayName: profile.displayName || "Utente",
+        username: profile.username,
+        avatarUrl: profile.avatarUrl,
+      }
+    : null;
 
   return (
     <>
@@ -103,31 +76,33 @@ export default async function HomePage() {
           </Link>
         </section>
 
-        <section className="mb-14">
-          <div className="mb-6 flex items-end justify-between gap-4">
-            <div>
-              <p className="label mb-2">Raccolta</p>
-              <h2 className="section-title">Preferiti</h2>
+        {userId ? (
+          <section className="mb-14">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <p className="label mb-2">Raccolta</p>
+                <h2 className="section-title">Preferiti</h2>
+              </div>
+              <span className="glass-chip px-3 py-1 text-[12px] font-medium text-secondary">
+                {favorites.length}
+              </span>
             </div>
-            <span className="glass-chip px-3 py-1 text-[12px] font-medium text-secondary">
-              {favorites.length}
-            </span>
-          </div>
 
-          {favorites.length > 0 ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {favorites.map((item) => (
-                <CampaignCard key={item.id} campaign={item} />
-              ))}
-            </div>
-          ) : (
-            <div className="empty-glass px-6 py-10 text-center">
-              <p className="text-[15px] text-secondary">
-                Nessun preferito ancora. Aggiungili dalla scheda campagna.
-              </p>
-            </div>
-          )}
-        </section>
+            {favorites.length > 0 ? (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {favorites.map((item) => (
+                  <CampaignCard key={item.id} campaign={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-glass px-6 py-10 text-center">
+                <p className="text-[15px] text-secondary">
+                  Nessun preferito ancora. Aggiungili dalla scheda campagna.
+                </p>
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">

@@ -26,7 +26,6 @@ export default async function UsersPage({
   return (
     <>
       <SiteHeader
-        showLogin={!viewer}
         user={
           viewerProfile && isProfileComplete(viewerProfile)
             ? {

@@ -1,27 +1,34 @@
 import Link from "next/link";
 import { CampaignCardWithDate } from "@/components/CampaignCard";
 import { SiteHeader } from "@/components/SiteHeader";
-import { requireCompleteProfile } from "@/lib/auth";
-import {
-  ensureDatabaseReady,
-  getRecentDailyPicks,
-} from "@/lib/db";
+import { getCurrentProfile } from "@/lib/auth";
+import { ensureDatabaseReady, getRecentDailyPicks } from "@/lib/db";
+import { isProfileComplete } from "@/lib/profile";
 
 export const dynamic = "force-dynamic";
 
 export default async function ArchivioPage() {
-  const { user, profile } = await requireCompleteProfile();
   await ensureDatabaseReady();
-  const recent = await getRecentDailyPicks(60, user.id);
+  const current = await getCurrentProfile();
+  const profile =
+    current && isProfileComplete(current.profile) ? current.profile : null;
+  const recent = await getRecentDailyPicks(
+    60,
+    profile ? current!.user.id : undefined
+  );
 
   return (
     <>
       <SiteHeader
-        user={{
-          displayName: profile.displayName || "Utente",
-          username: profile.username,
-          avatarUrl: profile.avatarUrl,
-        }}
+        user={
+          profile
+            ? {
+                displayName: profile.displayName || "Utente",
+                username: profile.username,
+                avatarUrl: profile.avatarUrl,
+              }
+            : null
+        }
       />
       <div className="mx-auto max-w-[960px] px-6 pb-24 pt-8">
         <Link

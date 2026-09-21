@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseCookieOptions } from "./cookie-options";
 
+/** Refresh Supabase session cookies when present. No auth gates — the site is public. */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -16,9 +17,6 @@ export async function updateSession(request: NextRequest) {
     );
     return supabaseResponse;
   }
-
-  const pathname = request.nextUrl.pathname;
-  const isAuthCallback = pathname.startsWith("/auth/callback");
 
   try {
     const supabase = createServerClient(url, anonKey, {
@@ -44,39 +42,7 @@ export async function updateSession(request: NextRequest) {
       },
     });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // Never intercept the OAuth/PKCE callback — Safari needs it to complete.
-    if (isAuthCallback) {
-      return supabaseResponse;
-    }
-
-    const isPublicAuthRoute =
-      pathname === "/login" || pathname.startsWith("/auth/");
-
-    const needsAuth =
-      pathname.startsWith("/campagna") ||
-      pathname.startsWith("/archivio") ||
-      pathname.startsWith("/onboarding") ||
-      pathname.startsWith("/api/campaigns") ||
-      pathname.startsWith("/api/chat") ||
-      pathname.startsWith("/api/profile");
-
-    if (!user && needsAuth) {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/login";
-      redirectUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    if (user && isPublicAuthRoute) {
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/";
-      return NextResponse.redirect(redirectUrl);
-    }
-
+    await supabase.auth.getUser();
     return supabaseResponse;
   } catch (error) {
     console.error("Supabase session update failed:", error);

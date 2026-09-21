@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {
   const current = await getCurrentProfile();
-  if (!current) redirect("/login");
+  if (!current) redirect("/");
   if (isProfileComplete(current.profile)) redirect("/");
 
   const suggestedUsername = slugifyUsername(

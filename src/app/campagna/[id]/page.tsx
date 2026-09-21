@@ -6,8 +6,9 @@ import { CampaignPersonalPanel } from "@/components/CampaignPersonalPanel";
 import { GlobalRatingBadge } from "@/components/GlobalRatingBadge";
 import { SheetSection } from "@/components/SheetSection";
 import { SiteHeader } from "@/components/SiteHeader";
-import { requireCompleteProfile } from "@/lib/auth";
+import { getCurrentProfile } from "@/lib/auth";
 import { ensureDatabaseReady, getCampaignWithMeta } from "@/lib/db";
+import { isProfileComplete } from "@/lib/profile";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +17,28 @@ export default async function CampaignPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { user, profile } = await requireCompleteProfile();
   await ensureDatabaseReady();
   const { id } = await params;
-  const campaign = await getCampaignWithMeta(id, user.id);
+  const current = await getCurrentProfile();
+  const profile =
+    current && isProfileComplete(current.profile) ? current.profile : null;
+  const userId = profile ? current!.user.id : undefined;
+  const campaign = await getCampaignWithMeta(id, userId);
 
   if (!campaign) notFound();
 
   return (
     <>
       <SiteHeader
-        user={{
-          displayName: profile.displayName || "Utente",
-          username: profile.username,
-          avatarUrl: profile.avatarUrl,
-        }}
+        user={
+          profile
+            ? {
+                displayName: profile.displayName || "Utente",
+                username: profile.username,
+                avatarUrl: profile.avatarUrl,
+              }
+            : null
+        }
       />
 
       <div className="mx-auto max-w-[960px] px-6 pb-24 pt-8">
@@ -64,13 +72,15 @@ export default async function CampaignPage({
           <SheetSection title="Altre info">{campaign.board}</SheetSection>
         </div>
 
-        <CampaignPersonalPanel
-          campaignId={campaign.id}
-          initialRating={campaign.rating}
-          initialFavorite={campaign.favorite}
-          initialNote={campaign.personal_note}
-          globalRating={campaign.global_rating}
-        />
+        {userId ? (
+          <CampaignPersonalPanel
+            campaignId={campaign.id}
+            initialRating={campaign.rating}
+            initialFavorite={campaign.favorite}
+            initialNote={campaign.personal_note}
+            globalRating={campaign.global_rating}
+          />
+        ) : null}
       </div>
     </>
   );

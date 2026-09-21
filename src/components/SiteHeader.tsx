@@ -9,10 +9,9 @@ interface SiteHeaderProps {
     username: string | null;
     avatarUrl: string | null;
   } | null;
-  showLogin?: boolean;
 }
 
-export function SiteHeader({ date, user, showLogin }: SiteHeaderProps) {
+export function SiteHeader({ date, user }: SiteHeaderProps) {
   return (
     <header className="glass-bar sticky top-0 z-50">
       <div className="mx-auto flex max-w-[960px] items-center justify-between gap-4 px-6 py-4">
@@ -33,18 +32,6 @@ export function SiteHeader({ date, user, showLogin }: SiteHeaderProps) {
           )}
           {user ? (
             <UserMenu user={user} />
-          ) : showLogin ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link
-                href="/utenti"
-                className="hidden text-[13px] text-secondary transition hover:text-text sm:block"
-              >
-                Persone
-              </Link>
-              <Link href="/login" className="btn-glass-ghost text-[13px]">
-                Accedi
-              </Link>
-            </div>
           ) : (
             <Link
               href="/utenti"
